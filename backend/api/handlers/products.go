@@ -77,7 +77,7 @@ func (productHandler *ProductsHandler) Create(w http.ResponseWriter, r *http.Req
     json.NewEncoder(w).Encode(product)
 }
 
-// List handles GET requests to list all products
+// List handles GET requests to list all products or search for products by name
 func (productHandler *ProductsHandler) List(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodGet {
         errorHandling.ThrowError(w, http.StatusMethodNotAllowed, "Invalid request method. Needs to be GET", nil)
@@ -88,7 +88,19 @@ func (productHandler *ProductsHandler) List(w http.ResponseWriter, r *http.Reque
     defer db.DbDisconnect()
     collection := db.Client.Database(dbName).Collection("products")
 
-    cursor, err := collection.Find(nil, bson.M{})
+    // Check if a search query parameter is present
+    query := r.URL.Query().Get("name")
+    var filter bson.M
+
+    if query != "" {
+        // Add a case-insensitive search filter for the name field
+        filter = bson.M{"name": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}}
+    } else {
+        // If no query, use an empty filter to list all products
+        filter = bson.M{}
+    }
+
+    cursor, err := collection.Find(nil, filter)
     if err != nil {
         errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to retrieve documents from the database", err)
         return
@@ -227,40 +239,4 @@ func (productHandler *ProductsHandler) DeleteByID(w http.ResponseWriter, r *http
     response := fmt.Sprintf("Deleted product with ID: %v", id)
     w.WriteHeader(http.StatusOK)
     w.Write([]byte(response))
-}
-
-// SearchProducts handles GET requests to search for products by name
-func (productHandler *ProductsHandler) SearchProducts(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodGet {
-        errorHandling.ThrowError(w, http.StatusMethodNotAllowed, "Invalid request method. Needs to be GET", nil)
-        return
-    }
-
-    query := r.URL.Query().Get("name")
-    if query == "" {
-        errorHandling.ThrowError(w, http.StatusBadRequest, "Search query is required", nil)
-        return
-    }
-
-    db := db.DbConnect()
-    defer db.DbDisconnect()
-    collection := db.Client.Database(dbName).Collection("products")
-
-    filter := bson.M{"name": bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}}
-    cursor, err := collection.Find(nil, filter)
-    if err != nil {
-        errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to search for products", err)
-        return
-    }
-    defer cursor.Close(nil)
-
-    var products []Product
-    if err := cursor.All(nil, &products); err != nil {
-        errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to decode products", err)
-        return
-    }
-
-    w.WriteHeader(http.StatusOK)
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(products)
 }
