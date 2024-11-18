@@ -12,7 +12,7 @@
                         "description": "Order amount; required integer, minimum 1"
                     },
                     "sum": {
-                        "bsonType": "number",
+                        "bsonType": "double",
                         "minimum": 0,
                         "description": "Order sum; required number, non-negative"
                     },

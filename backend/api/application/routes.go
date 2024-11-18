@@ -21,7 +21,7 @@ func loadRoutes() *chi.Mux {
 
 	router.Route("/products", loadProductsRoutes)
 	router.Route("/customers", loadCustomersRoutes)
-	//router.Route("/orders", loadOrdersRoutes)
+	router.Route("/orders", loadOrdersRoutes)
 
 	return router
 }
@@ -45,11 +45,11 @@ func loadCustomersRoutes(router chi.Router) {
 	router.Delete("/{id}", customersHandler.DeleteByID)
 }
 
-/*func loadOrdersRoutes(router chi.Router) {
-	ordersHandler := &handler.OrdersHandler{}
+func loadOrdersRoutes(router chi.Router) {
+	ordersHandler := &handlers.OrdersHandler{}
 	router.Post("/", ordersHandler.Create)
 	router.Get("/", ordersHandler.List)
 	router.Get("/{id}", ordersHandler.GetByID)
 	router.Put("/{id}", ordersHandler.UpdateByID)
-	router.Delete("/{id}", ordersHandler.DeleteByID)
-}*/
+	//router.Delete("/{id}", ordersHandler.DeleteByID)
+}
