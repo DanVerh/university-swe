@@ -1,0 +1,38 @@
+[
+    {
+        "create": "products",
+        "validator": {
+            "$jsonSchema": {
+                "bsonType": "object",
+                "required": ["name", "price", "amount"],
+                "properties": {
+                    "name": {
+                        "bsonType": "string",
+                        "description": "Product name; required string"
+                    },
+                    "price": {
+                        "bsonType": "double",
+                        "minimum": 0,
+                        "description": "Product price; required number, must be non-negative"
+                    },
+                    "amount": {
+                        "bsonType": "int",
+                        "minimum": 0,
+                        "description": "Product amount; required integer, must be non-negative"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "createIndexes": "products",
+        "indexes": [
+          {
+            "key": { "name": 1 },
+            "name": "name_unique_index",
+            "unique": true,
+            "background": true
+          }
+        ]
+    }
+]

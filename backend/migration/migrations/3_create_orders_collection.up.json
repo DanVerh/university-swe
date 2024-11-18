@@ -1,0 +1,36 @@
+[
+    {
+        "create": "orders",
+        "validator": {
+            "$jsonSchema": {
+                "bsonType": "object",
+                "required": ["amount", "sum", "customer", "status", "product"],
+                "properties": {
+                    "amount": {
+                        "bsonType": "int",
+                        "minimum": 1,
+                        "description": "Order amount; required integer, minimum 1"
+                    },
+                    "sum": {
+                        "bsonType": "number",
+                        "minimum": 0,
+                        "description": "Order sum; required number, non-negative"
+                    },
+                    "customer": {
+                        "bsonType": "objectId",
+                        "description": "Customer ObjectId reference; required"
+                    },
+                    "status": {
+                        "bsonType": "string",
+                        "enum": ["pending", "processing", "shipped", "delivered", "cancelled"],
+                        "description": "Order status; required string"
+                    },
+                    "product": {
+                        "bsonType": "objectId",
+                        "description": "Product ObjectId reference; required"
+                    }
+                }
+            }
+        }
+    }
+]

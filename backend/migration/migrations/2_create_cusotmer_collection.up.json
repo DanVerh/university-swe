@@ -1,0 +1,31 @@
+[
+    {
+        "create": "customers",
+        "validator": {
+            "$jsonSchema": {
+                "bsonType": "object",
+                "required": ["name", "address"],
+                "properties": {
+                    "name": {
+                        "bsonType": "string",
+                        "description": "Customer name; required string"
+                    },
+                    "address": {
+                        "bsonType": "string",
+                        "description": "Customer address; required string"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "createIndexes": "customers",
+        "indexes": [
+          {
+            "key": { "name": 1 },
+            "name": "name_index",
+            "background": true
+          }
+        ]
+    }
+]
