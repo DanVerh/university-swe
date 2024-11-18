@@ -23,6 +23,7 @@
         "indexes": [
           {
             "key": { "name": 1 },
+            "unique": true,
             "name": "name_index",
             "background": true
           }
