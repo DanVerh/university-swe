@@ -154,3 +154,129 @@ func (ordersHandler *OrdersHandler) GetByID(w http.ResponseWriter, r *http.Reque
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(order)
 }
+
+// UpdateByID handles PUT requests to update an order by ID
+func (ordersHandler *OrdersHandler) UpdateByID(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPut {
+        errorHandling.ThrowError(w, http.StatusMethodNotAllowed, "Invalid request method. Needs to be PUT", nil)
+        return
+    }
+
+    id := strings.TrimPrefix(r.URL.Path, "/orders/")
+    objectID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        errorHandling.ThrowError(w, http.StatusBadRequest, "Invalid ObjectId format", nil)
+        return
+    }
+
+    var updateBody bson.M
+    if err := json.NewDecoder(r.Body).Decode(&updateBody); err != nil {
+        errorHandling.ThrowError(w, http.StatusBadRequest, "Invalid request body", nil)
+        return
+    }
+
+    db := db.DbConnect()
+    defer db.DbDisconnect()
+    collection := db.Client.Database(dbName).Collection("orders")
+
+    var updateKeys []string
+    for updateKey := range updateBody {
+        if updateKey != "status" {
+            errorHandling.ThrowError(w, http.StatusBadRequest, "Invalid update field. Only status allowed", nil)
+            return
+        }
+        updateKeys = append(updateKeys, updateKey)
+    }
+
+    updateResult, err := collection.UpdateByID(nil, objectID, bson.M{"$set": updateBody})
+    if err != nil {
+        errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to update customer", err)
+        return
+    }
+    if updateResult.MatchedCount == 0 {
+        errorHandling.ThrowError(w, http.StatusNotFound, "No customer found with the provided ID", nil)
+        return
+    }
+
+    response := fmt.Sprintf("Customer with id %v fields updated successfully: %v", id, updateKeys)
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(response))
+}
+
+// DeleteByID handles DELETE requests to delete a customer by ID
+func (ordersHandler *OrdersHandler) DeleteByID(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodDelete {
+        errorHandling.ThrowError(w, http.StatusMethodNotAllowed, "Invalid request method. Needs to be DELETE", nil)
+        return
+    }
+
+    id := strings.TrimPrefix(r.URL.Path, "/orders/")
+    objectID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        errorHandling.ThrowError(w, http.StatusBadRequest, "Invalid ObjectId format", nil)
+        return
+    }
+
+    db := db.DbConnect()
+    defer db.DbDisconnect()
+	collection := db.Client.Database(dbName).Collection("orders")
+
+    deleteResult, err := collection.DeleteOne(nil, bson.M{"_id": objectID})
+    if err != nil {
+        errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to delete order", err)
+        return
+    }
+    if deleteResult.DeletedCount == 0 {
+        errorHandling.ThrowError(w, http.StatusNotFound, fmt.Sprintf("No order found with the provided ID: %v", id), nil)
+        return
+    }
+
+    response := fmt.Sprintf("Deleted order with ID: %v", id)
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(response))
+}
+
+// SumDeliveredOrders handles GET requests to calculate the total sum of delivered orders
+func (ordersHandler *OrdersHandler) SumDeliveredOrders(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        errorHandling.ThrowError(w, http.StatusMethodNotAllowed, "Invalid request method. Needs to be GET", nil)
+        return
+    }
+
+    db := db.DbConnect()
+    defer db.DbDisconnect()
+    collection := db.Client.Database(dbName).Collection("orders")
+
+    // Aggregation pipeline to filter and sum
+    pipeline := mongo.Pipeline{
+        bson.D{{"$match", bson.D{{"status", "delivered"}}}},
+        bson.D{{"$group", bson.D{
+            {"_id", nil},
+            {"totalSum", bson.D{{"$sum", "$sum"}}},
+        }}},
+    }
+
+    cursor, err := collection.Aggregate(nil, pipeline)
+    if err != nil {
+        errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to aggregate orders", err)
+        return
+    }
+    defer cursor.Close(nil)
+
+    // Read the aggregation result
+    var result []bson.M
+    if err := cursor.All(nil, &result); err != nil {
+        errorHandling.ThrowError(w, http.StatusInternalServerError, "Failed to decode aggregation result", err)
+        return
+    }
+
+    // If no results, the total sum is 0
+    var totalSum float64
+    if len(result) > 0 {
+        totalSum, _ = result[0]["totalSum"].(float64)
+    }
+
+    w.WriteHeader(http.StatusOK)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(bson.M{"totalSum": totalSum})
+}
